@@ -1,7 +1,7 @@
 # ESP32 Handheld Tetris Console: Embedded Systems Study
 
 **Status:** Ongoing (Dec 2025 – Present)  
-**Tech Stack:** ESP32 (C++), FastLED, Digital Signal Processing (Audio), Power Electronics
+**Tech Stack:** ESP32 (C++), FastLED, Hardware Interrupts, Finite State Machines
 
 ## 1. Project Overview
 This project is an engineering deep-dive into designing a handheld gaming console from first principles. While the functional goal was to replicate the classic Tetris game logic, the technical objective was to master **32-bit microcontroller architecture**, **low-level peripheral management**, and **power distribution networks**.

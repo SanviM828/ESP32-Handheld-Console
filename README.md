@@ -1,14 +1,21 @@
-# ESP32 Handheld Tetris Console
+# ESP32 Handheld Tetris Console: Embedded Systems Study
 
-## 1. Introduction
-This project details the design and implementation of a handheld gaming console powered by the ESP32 microcontroller. The system emulates the classic Tetris game logic, featuring a custom-built 8x8 RGB LED matrix display, low-latency input handling, and hardware-PWM audio synthesis. 
+**Status:** Ongoing (Dec 2025 – Present)  
+**Tech Stack:** ESP32 (C++), FreeRTOS, FastLED, Digital Signal Processing (Audio), Power Electronics
 
-The project focuses on embedded systems concepts including GPIO architecture, interrupt-based input handling, power distribution for mixed-voltage components, and efficient memory management for display buffering.
+## 1. Project Overview
+This project is an engineering deep-dive into designing a handheld gaming console from first principles. While the functional goal was to replicate the classic Tetris game logic, the technical objective was to master **32-bit microcontroller architecture**, **low-level peripheral management**, and **power distribution networks**.
+
+The system features a custom display driver that maps 2D game logic to a serial LED stream, zero-latency input handling via hardware polling, and a PWM-based audio synthesis engine. It demonstrates practical application of interrupt management, coordinate transformation matrices, and efficient memory usage on the ESP32 platform.
 
 ## 2. System Architecture
 
 ### 2.1 Hardware Overview
-The core processing unit is the ESP32 WROOM-32, chosen for its dual-core architecture and high clock speed (240MHz), ensuring flicker-free display updates. Power is managed via an LM2596 Buck Converter, stepping down a 9V DC source to a stable 5V logic rail, isolating the high-current LED load from the microcontroller's internal regulator.
+The core processing unit is the **ESP32 WROOM-32**, chosen for its dual-core architecture and high clock speed (240MHz), ensuring flicker-free display updates compared to 8-bit alternatives. 
+
+Power is managed via an **LM2596 Buck Converter**, stepping down a 9V DC source to a stable 5V logic rail. The circuit utilizes a **"Split Power" topology** where the Buck Converter output feeds the LED Matrix and ESP32 `VIN` pin in parallel. This prevents the high LED current (up to 2A at full white brightness) from passing through the ESP32 PCB traces, effectively mitigating thermal risks and voltage sag on the logic rail.
+
+
 
 ### 2.2 Component Bill of Materials (BOM)
 | Component | Specification | Function |
@@ -18,10 +25,30 @@ The core processing unit is the ESP32 WROOM-32, chosen for its dual-core archite
 | **Audio** | TDK PS110 Passive Buzzer | PWM-driven sound synthesis |
 | **Power Regulation** | LM2596 Buck Converter | 9V to 5V DC-DC Step-down |
 | **Input Interface** | 5x Tactile Switches | Active-Low user inputs |
-| **Power Source** | 9V Battery | Primary power supply |
+| **Power Source** | 9V Alkaline / Li-Ion | Primary power supply |
 
-### 2.3 Pin Configuration & Planning
-Careful pin planning was required to avoid ESP32 "Strapping Pins" (pins that determine boot modes).
+### 2.3 Component Selection Rationale
+*Design decisions regarding power management and signal integrity.*
+
+**1. Power Regulation: LM2596 vs. Linear Regulators (7805)**
+* **Initial Concept:** L7805CV Linear Regulator.
+* **Problem:** The LED matrix, when displaying full white, can draw significant current. Stepping down 9V to 5V creates a 4V drop. At moderate loads (e.g., 500mA), a linear regulator would dissipate 2 Watts of heat ($P = V_{drop} \times I$), requiring a bulky heatsink.
+* **Selected Solution:** **LM2596 Buck Converter**.
+    * **Reason:** It uses switching topology to achieve >80% efficiency, minimizing thermal loss and preserving battery life for portable operation.
+
+**2. Audio: Passive vs. Active Buzzer**
+* **Initial Concept:** SFM-27 Active Buzzer.
+* **Problem:** Active buzzers oscillate at a fixed internal frequency when powered, making them incapable of playing melodies.
+* **Selected Solution:** **TDK PS110 Passive Transducer**.
+    * **Reason:** Allows the firmware to modulate the PWM frequency (1000Hz–2500Hz) to generate distinct musical notes for gameplay events (Line Clear, Tetris Theme, Game Over).
+
+**3. Microcontroller: ESP32 vs. Arduino Nano**
+* **Reason for Change:** The WS2812B LED protocol requires precise timing. The ESP32's higher clock speed (240MHz vs 16MHz) ensures that display refreshing does not block input polling.
+
+## 3. Implementation Details
+
+### 3.1 Pin Configuration & Planning
+Careful pin planning was required to avoid ESP32 "Strapping Pins" (pins that determine boot modes) and UART conflicts.
 
 | Function | GPIO Pin | Configuration | Notes |
 |----------|----------|---------------|-------|
@@ -33,48 +60,57 @@ Careful pin planning was required to avoid ESP32 "Strapping Pins" (pins that det
 | **Audio Out** | GPIO 23 | OUTPUT | PWM signal generation |
 | **Display Data** | GPIO 25 | OUTPUT | WS2812B Data Line |
 
-## 3. Circuit Diagram
-`![Schematic](assets/images/circuit_diagram.jpg)`
-
-The circuit utilizes a "Split Power" topology. The Buck Converter output feeds the LED Matrix and ESP32 `VIN` pin in parallel. This prevents the LED current (up to 2A at full white) from passing through the ESP32 traces, mitigating thermal risks.
+### 3.2 Circuit Diagram
+![Circuit Schematic](media/tetris_ckt)
 
 ## 4. Engineering Challenges & Resolutions
+This section documents the critical failures encountered during development and the engineering principles applied to resolve them.
 
-### 4.1 The "Strapping Pin" Conflict (GPIO 2)
-**Problem:** Initially, the 'Left' button was mapped to GPIO 2. The input failed to register, and the system became unstable.
-**Analysis:** GPIO 2 is an ESP32 strapping pin connected to the on-board LED. During boot, it must be floating or low. The internal circuitry interfered with the weak internal pull-up resistor required for the button.
-**Solution:** The button was remapped to GPIO 15, a standard GPIO pin, resolving the conflict without external hardware changes.
+### Challenge 1: The "Strapping Pin" Conflict (GPIO 2)
+**The Issue:** The "Left" movement button was initially mapped to GPIO 2. During testing, the button failed to register inputs reliably, and the board would sometimes fail to boot.
+**Root Cause Analysis:** Consulting the datasheet revealed that GPIO 2 is a **Strapping Pin** used to determine boot mode. It also connects to the on-board Blue LED, which acts as a pull-down resistor, interfering with the internal `INPUT_PULLUP` logic required for the switch.
+**The Solution:** Remapped the "Left" button to **GPIO 15**, a standard GPIO pin, resolving the conflict without external hardware changes.
 
-### 4.2 UART Interference on GPIO 3
-**Problem:** The 'Right' button is mapped to GPIO 3 (RX0). While the button worked during gameplay, uploading new firmware failed with a "Time Out" error.
-**Analysis:** GPIO 3 is the Receive (RX) line for the UART interface used to flash the chip. Connecting a button (and ground path) effectively shorted the data stream from the computer.
-**Solution:** Implemented a workflow protocol: The GPIO 3 jumper wire is physically disconnected during the bootloader sequence and reconnected immediately after successful flashing.
+### Challenge 2: UART Bus Contention
+**The Issue:** The "Right" button was mapped to GPIO 3 (RX0). While gameplay worked, uploading new code failed with a "Time Out" error.
+**Root Cause Analysis:** GPIO 3 is the Serial Receive (RX) line for the USB-to-UART bridge. Connecting a button created a path to ground that corrupted the data stream during flashing.
+**The Solution:** Implemented a hardware workflow protocol: The GPIO 3 jumper wire is physically disconnected during the bootloader sequence and reconnected immediately after successful flashing.
 
-### 4.3 Input "Ghosting" (Floating Pins)
-**Problem:** During early prototyping, the buzzer would trigger random sounds, and pieces would move without user input.
-**Analysis:** Long jumper wires acted as antennas, coupling capacitive noise into high-impedance input pins.
-**Solution:**
-1. **Software:** Enabled internal `INPUT_PULLUP` resistors on all input pins.
-2. **Hardware:** Established a solid "Star Ground" topology, ensuring all button ground returns met at a single low-impedance point at the Buck Converter output.
+### Challenge 3: Input "Ghosting" (EMI)
+**The Issue:** The buzzer would emit random sounds and pieces would move without user interaction.
+**Root Cause Analysis:** Input pins were left floating. Long jumper wires acted as antennas, coupling capacitive noise from the environment and triggering false digital interrupts.
+**The Solution:**
+1. **Software:** Enforced internal `INPUT_PULLUP` resistors on all input pins.
+2. **Hardware:** Established a **"Star Ground"** topology at the Buck Converter output to minimize ground loop noise.
 
-### 4.4 Matrix Orientation
-**Problem:** The physical mounting of the LED matrix resulted in the coordinate system being inverted (Tetrominos fell upwards).
-**Solution:** Implemented a coordinate transformation layer in the display driver:
-`newX = (WIDTH - 1) - x;`
-`newY = (HEIGHT - 1) - y;`
-This allows the software logic to remain standard while visually correcting the output 180 degrees.
+### Challenge 4: Matrix Orientation
+**The Issue:** The physical mounting of the LED matrix resulted in the coordinate system being inverted (Tetrominos fell upwards).
+**The Solution:** Implemented a coordinate transformation layer in the display driver (`getPixelIndex`). By calculating `newX = (WIDTH - 1) - x` and `newY = (HEIGHT - 1) - y`, the software logic remains standard while visually correcting the output 180 degrees.
 
-## 5. Software Implementation
-The firmware is written in C++ utilizing the Arduino framework. Key modules include:
-* **Game Loop:** Non-blocking `millis()` timer implementation to handle gravity and inputs independently.
-* **Display Driver:** Uses the `FastLED` library for DMA-based control of the WS2812B LEDs.
-* **Audio Driver:** Custom wrapper for the `ledc` peripheral to generate square wave tones for game events.
+## 5. Software Logic (The "Tetris Engine")
+The firmware avoids blocking `delay()` calls to maintain responsiveness. It uses a **Polled State Machine** architecture:
 
-## 6. Future Improvements
-* **Hardware Consolidation:** Migrate the circuit from the solderless breadboard to a permanent perfboard (prototyping board) assembly.
-* **Circuit Hardening:** Implement soldered point-to-point wiring to improve mechanical stability and vibration resistance.
-* **Enclosure:** Finalize 3D-printed clamshell case design in Fusion 360 to house the consolidated electronics.
-* **Power Management:** Integrate a TP4056 Li-Ion charging module to replace the disposable 9V battery.
+* **Input State:** Scans GPIOs every 1ms with software debouncing (150ms threshold).
+* **Logic State:** Calculates gravity/drop timers and handles collision detection (checking boundaries and board state).
+* **Render State:** Maps the virtual board to the physical LED array using the coordinate transformation layer.
 
-## 7. License
-This project is open-source software licensed under the MIT License.
+**Repository Structure:** The complete source code is available in the [`src/`](src/) directory.
+
+## 6. Project Timeline & Learning Outcomes
+**Duration:** Dec 2025 – Present
+
+* **Phase 1 (Simulation):** Validated logic flow and array management.
+* **Phase 2 (Breadboard Prototype):** Established power distribution and verified the ESP32/Level-Shifter logic.
+* **Phase 3 (Optimization):** Migrated from blocking loops to asynchronous timer-based execution to allow for smooth audio multitasking.
+
+## 7. Current Status & Future Roadmap
+The project is currently in the **"Electronic Verification Complete"** stage. The core logic, power distribution, and drivers are fully functional on the breadboard prototype.
+
+### Phase 4: Hardware Consolidation (Upcoming)
+The next phase involves transitioning from the temporary breadboard to a permanent assembly.
+* **Circuit Hardening:** Migrating the circuit to a **Perfboard (Dot PCB)** using point-to-point soldering to improve mechanical stability and vibration resistance.
+* **Enclosure Design:** Finalizing a "Clamshell" style case in **Fusion 360** to house the electronics and battery.
+* **Power Management:** Integrating a **TP4056** module to support rechargeable Li-Ion cells, replacing the disposable 9V battery.
+
+## Disclaimer
+This project is an educational exploration of embedded systems design. It is not an official product. All software is provided "as is" under the MIT License.

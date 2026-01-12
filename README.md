@@ -34,7 +34,7 @@ Careful pin planning was required to avoid ESP32 "Strapping Pins" (pins that det
 | **Display Data** | GPIO 25 | OUTPUT | WS2812B Data Line |
 
 ## 3. Circuit Diagram
-*(Insert your hand-drawn schematic image here: `![Schematic](assets/images/circuit_diagram.jpg)`)*
+`![Schematic](assets/images/circuit_diagram.jpg)`
 
 The circuit utilizes a "Split Power" topology. The Buck Converter output feeds the LED Matrix and ESP32 `VIN` pin in parallel. This prevents the LED current (up to 2A at full white) from passing through the ESP32 traces, mitigating thermal risks.
 

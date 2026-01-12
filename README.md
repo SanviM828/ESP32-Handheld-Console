@@ -104,7 +104,11 @@ The firmware avoids blocking `delay()` calls to maintain responsiveness. It uses
 * **Phase 2 (Breadboard Prototype):** Established power distribution and verified the ESP32/Level-Shifter logic.
 * **Phase 3 (Optimization):** Migrated from blocking loops to asynchronous timer-based execution to allow for smooth audio multitasking.
 
-## 7. Current Status & Future Roadmap
+## 7. Media Gallery
+**Prototype Demo:** [Watch the Gameplay Demo](https://github.com/user-attachments/assets/c534d179-25d2-437a-9a34-f96d085b39f9)
+*Video demonstration showing system startup, input latency testing, and audio-reactive gameplay on the breadboard prototype.*
+
+## 8. Current Status & Future Roadmap
 The project is currently in the **"Electronic Verification Complete"** stage. The core logic, power distribution, and drivers are fully functional on the breadboard prototype.
 
 ### Phase 4: Hardware Consolidation (Upcoming)

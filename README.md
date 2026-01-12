@@ -61,7 +61,7 @@ Careful pin planning was required to avoid ESP32 "Strapping Pins" (pins that det
 | **Display Data** | GPIO 25 | OUTPUT | WS2812B Data Line |
 
 ### 3.2 Circuit Diagram
-![Circuit Schematic](media/tetris_ckt)
+![Circuit Schematic](media/tetris_ckt.jpg)
 
 ## 4. Engineering Challenges & Resolutions
 This section documents the critical failures encountered during development and the engineering principles applied to resolve them.

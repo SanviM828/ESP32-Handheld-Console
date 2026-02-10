@@ -13,7 +13,7 @@ The system features a custom display driver that maps 2D game logic to a serial 
 ### 2.1 Hardware Overview
 The core processing unit is the **ESP32 WROOM-32**, chosen for its dual-core architecture and high clock speed (240MHz), ensuring flicker-free display updates compared to 8-bit alternatives. 
 
-Power is managed via an **LM2596 Buck Converter**, stepping down a 9V DC source to a stable 5V logic rail. The circuit utilizes a **"Split Power" topology** where the Buck Converter output feeds the LED Matrix and ESP32 `VIN` pin in parallel. This prevents the high LED current (up to 2A at full white brightness) from passing through the ESP32 PCB traces, effectively mitigating thermal risks and voltage sag on the logic rail.
+Power is managed via an **LM2596 Buck Converter**, stepping down a 7.4V DC source to a stable 5V logic rail. The circuit utilizes a **"Split Power" topology** where the Buck Converter output feeds the LED Matrix and ESP32 `VIN` pin in parallel. This prevents the high LED current (up to 2A at full white brightness) from passing through the ESP32 PCB traces, effectively mitigating thermal risks and voltage sag on the logic rail.
 
 
 
@@ -25,14 +25,14 @@ Power is managed via an **LM2596 Buck Converter**, stepping down a 9V DC source 
 | **Audio** | TDK PS110 Passive Buzzer | PWM-driven sound synthesis |
 | **Power Regulation** | LM2596 Buck Converter | 9V to 5V DC-DC Step-down |
 | **Input Interface** | 5x Tactile Switches | Active-Low user inputs |
-| **Power Source** | 9V Alkaline / Li-Ion | Primary power supply |
+| **Power Source** | 7.4V Li-Ion | Primary power supply |
 
 ### 2.3 Component Selection Rationale
 *Design decisions regarding power management and signal integrity.*
 
 **1. Power Regulation: LM2596 vs. Linear Regulators (7805)**
 * **Initial Concept:** L7805CV Linear Regulator.
-* **Problem:** The LED matrix, when displaying full white, can draw significant current. Stepping down 9V to 5V creates a 4V drop. At moderate loads (e.g., 500mA), a linear regulator would dissipate 2 Watts of heat ($P = V_{drop} \times I$), requiring a bulky heatsink.
+* **Problem:** The LED matrix, when displaying full white, can draw significant current. Stepping down 7.4V to 5V creates a 2.4V drop. At moderate loads (e.g., 500mA), a linear regulator would dissipate 2 Watts of heat ($P = V_{drop} \times I$), requiring a bulky heatsink.
 * **Selected Solution:** **LM2596 Buck Converter**.
     * **Reason:** It uses switching topology to achieve >80% efficiency, minimizing thermal loss and preserving battery life for portable operation.
 
@@ -115,7 +115,6 @@ The project is currently in the **"Electronic Verification Complete"** stage. Th
 The next phase involves transitioning from the temporary breadboard to a permanent assembly.
 * **Circuit Hardening:** Migrating the circuit to a **Perfboard (Dot PCB)** using point-to-point soldering to improve mechanical stability and vibration resistance.
 * **Enclosure Design:** Finalizing a "Clamshell" style case in **Fusion 360** to house the electronics and battery.
-* **Power Management:** Integrating a **TP4056** module to support rechargeable Li-Ion cells, replacing the disposable 9V battery.
 
 ## Disclaimer
 This project is an educational exploration of embedded systems design. It is not an official product. All software is provided "as is" under the MIT License.
